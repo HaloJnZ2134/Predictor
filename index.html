@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mines & Towers Analyzer</title>
+
+<style>
+:root{
+    --bg:#0f172a;
+    --panel:#1e293b;
+    --accent:#38bdf8;
+    --green:#22c55e;
+    --yellow:#eab308;
+    --red:#ef4444;
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    background:var(--bg);
+    color:white;
+    font-family:Inter,Arial,sans-serif;
+    padding:20px;
+}
+
+h1{
+    margin-bottom:20px;
+}
+
+.container{
+    max-width:1200px;
+    margin:auto;
+}
+
+.card{
+    background:var(--panel);
+    padding:20px;
+    border-radius:12px;
+    margin-bottom:20px;
+}
+
+button{
+    background:var(--accent);
+    color:black;
+    border:none;
+    padding:10px 16px;
+    border-radius:8px;
+    cursor:pointer;
+    margin:5px;
+    font-weight:bold;
+}
+
+input{
+    padding:10px;
+    border:none;
+    border-radius:8px;
+    width:100%;
+    margin-top:10px;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(5,70px);
+    gap:10px;
+    justify-content:center;
+    margin-top:20px;
+}
+
+.tile{
+    width:70px;
+    height:70px;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    font-size:12px;
+    font-weight:bold;
+}
+
+.row{
+    display:flex;
+    gap:20px;
+    flex-wrap:wrap;
+}
+
+.col{
+    flex:1;
+    min-width:350px;
+}
+
+.towerGrid{
+    display:grid;
+    grid-template-columns:repeat(3,90px);
+    gap:10px;
+    justify-content:center;
+    margin-top:20px;
+}
+
+.path{
+    height:60px;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:bold;
+}
+
+.stat{
+    font-size:18px;
+    margin-top:10px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h1>🎮 Mines & Towers Analyzer</h1>
+
+<div class="card">
+
+<h2>Add Mines Round</h2>
+
+<p>Example: 3,7,18</p>
+
+<input id="minesInput" placeholder="Mine positions">
+
+<button onclick="addMinesRound()">
+Add Mines Round
+</button>
+
+</div>
+
+<div class="card">
+
+<h2>Add Towers Round</h2>
+
+<p>Example: L,R,M,L,R</p>
+
+<input id="towersInput" placeholder="Tower path">
+
+<button onclick="addTowerRound()">
+Add Towers Round
+</button>
+
+</div>
+
+<div class="card">
+
+<button onclick="analyzeMines()">
+Analyze Mines
+</button>
+
+<button onclick="analyzeTowers()">
+Analyze Towers
+</button>
+
+<button onclick="exportData()">
+Export JSON
+</button>
+
+<input type="file" id="importFile">
+
+</div>
+
+<div class="row">
+
+<div class="col">
+
+<div class="card">
+
+<h2>Mines Heatmap</h2>
+
+<div id="minesGrid" class="grid"></div>
+
+<div id="mineRecommendations"></div>
+
+</div>
+
+</div>
+
+<div class="col">
+
+<div class="card">
+
+<h2>Towers Analysis</h2>
+
+<div id="towerGrid" class="towerGrid"></div>
+
+<div id="towerRecommendations"></div>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="card">
+
+<h2>Statistics</h2>
+
+<div id="stats"></div>
+
+</div>
+
+</div>
+
+<script>
+
+let minesHistory =
+JSON.parse(localStorage.getItem("minesHistory") || "[]");
+
+let towersHistory =
+JSON.parse(localStorage.getItem("towersHistory") || "[]");
+
+function saveData(){
+
+localStorage.setItem(
+"minesHistory",
+JSON.stringify(minesHistory)
+);
+
+localStorage.setItem(
+"towersHistory",
+JSON.stringify(towersHistory)
+);
+
+}
+
+function addMinesRound(){
+
+const value =
+document.getElementById("minesInput").value;
+
+if(!value) return;
+
+const arr =
+value.split(",").map(Number);
+
+minesHistory.push(arr);
+
+saveData();
+
+alert("Mines round saved");
+
+}
+
+function addTowerRound(){
+
+const value =
+document.getElementById("towersInput").value;
+
+if(!value) return;
+
+const arr =
+value.split(",");
+
+towersHistory.push(arr);
+
+saveData();
+
+alert("Tower round saved");
+
+}
+
+function analyzeMines(){
+
+const counts =
+Array(25).fill(0);
+
+minesHistory.forEach(round=>{
+
+round.forEach(tile=>{
+
+if(tile>=1 && tile<=25)
+counts[tile-1]++;
+
+});
+
+});
+
+const total =
+Math.max(minesHistory.length,1);
+
+const risks =
+counts.map(v=>
+(v/total)*100
+);
+
+const grid =
+document.getElementById("minesGrid");
+
+grid.innerHTML="";
+
+let ranking=[];
+
+for(let i=0;i<25;i++){
+
+ranking.push({
+tile:i+1,
+risk:risks[i]
+});
+
+}
+
+ranking.sort((a,b)=>a.risk-b.risk);
+
+for(let i=0;i<25;i++){
+
+const div =
+document.createElement("div");
+
+const risk =
+risks[i];
+
+let color;
+
+if(risk<20)
+color="#22c55e";
+else if(risk<40)
+color="#eab308";
+else
+color="#ef4444";
+
+div.className="tile";
+
+div.style.background=color;
+
+div.innerHTML=
+`
+${i+1}
+<br>
+${risk.toFixed(1)}%
+`;
+
+grid.appendChild(div);
+
+}
+
+document.getElementById(
+"mineRecommendations"
+).innerHTML=
+`
+<h3 style="margin-top:20px">
+Lowest Historical Risk
+</h3>
+
+<p>
+#${ranking[0].tile},
+#${ranking[1].tile},
+#${ranking[2].tile}
+</p>
+`;
+
+updateStats();
+
+}
+
+function analyzeTowers(){
+
+const positions=[];
+
+for(let floor=0;floor<8;floor++){
+
+positions.push({
+L:0,
+M:0,
+R:0
+});
+
+}
+
+towersHistory.forEach(path=>{
+
+path.forEach((side,index)=>{
+
+if(positions[index])
+positions[index][side]++;
+
+});
+
+});
+
+const grid =
+document.getElementById("towerGrid");
+
+grid.innerHTML="";
+
+let recommendations=[];
+
+positions.forEach((floor,index)=>{
+
+const best =
+Object.entries(floor)
+.sort((a,b)=>b[1]-a[1])[0];
+
+recommendations.push(
+`Floor ${index+1}: ${best[0]}`
+);
+
+["L","M","R"].forEach(side=>{
+
+const div =
+document.createElement("div");
+
+div.className="path";
+
+div.style.background=
+side===best[0]
+? "#22c55e"
+: "#334155";
+
+div.innerText=
+`${side}
+(${floor[side]})`;
+
+grid.appendChild(div);
+
+});
+
+});
+
+document.getElementById(
+"towerRecommendations"
+).innerHTML=
+`
+<h3 style="margin-top:20px">
+Most Common Historical Path
+</h3>
+
+<p>
+${recommendations.join("<br>")}
+</p>
+`;
+
+updateStats();
+
+}
+
+function updateStats(){
+
+document.getElementById("stats")
+.innerHTML=
+`
+<div class="stat">
+Mines Rounds:
+${minesHistory.length}
+</div>
+
+<div class="stat">
+Tower Rounds:
+${towersHistory.length}
+</div>
+`;
+
+}
+
+function exportData(){
+
+const data={
+minesHistory,
+towersHistory
+};
+
+const blob =
+new Blob(
+[JSON.stringify(data,null,2)],
+{type:"application/json"}
+);
+
+const a =
+document.createElement("a");
+
+a.href =
+URL.createObjectURL(blob);
+
+a.download =
+"analyzer-data.json";
+
+a.click();
+
+}
+
+document
+.getElementById("importFile")
+.addEventListener("change",e=>{
+
+const file =
+e.target.files[0];
+
+if(!file) return;
+
+const reader =
+new FileReader();
+
+reader.onload=()=>{
+
+const data =
+JSON.parse(reader.result);
+
+minesHistory =
+data.minesHistory || [];
+
+towersHistory =
+data.towersHistory || [];
+
+saveData();
+
+analyzeMines();
+
+analyzeTowers();
+
+};
+
+reader.readAsText(file);
+
+});
+
+analyzeMines();
+analyzeTowers();
+
+</script>
+
+</body>
+</html>
